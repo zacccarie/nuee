@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NUÉE — relevé de biosphère</title>
+<style>
+  :root{
+    --ink:#232833;
+    --cream:#ece5d2;
+    --coral:#e08a6d;
+    --lav:#b7a8d4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--ink)}
+  body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--cream);
+       -webkit-font-smoothing:antialiased}
+  canvas{display:block}
+
+  /* ————— intro ————— */
+  #intro{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;
+         align-items:center;justify-content:center;gap:2.2rem;
+         background:rgba(35,40,51,.86);cursor:pointer;transition:opacity 1.4s ease}
+  @media (prefers-reduced-motion: reduce){#intro .enter{animation:none;opacity:.7}}
+  #intro.hidden{opacity:0;pointer-events:none}
+  #intro .rule{width:220px;height:1px;background:var(--cream);opacity:.35}
+  #intro h1{font-weight:300;font-size:clamp(2.2rem,6vw,4.6rem);
+            letter-spacing:.42em;text-indent:.42em;color:var(--cream)}
+  #intro .sub{font-size:.72rem;letter-spacing:.34em;text-transform:uppercase;
+              color:var(--lav);font-weight:400}
+  #intro .controls{display:grid;grid-template-columns:auto auto;gap:.55rem 1.6rem;
+                   font-size:.72rem;letter-spacing:.14em;color:var(--cream)}
+  #intro .controls b{font-weight:400;color:var(--coral);letter-spacing:.2em;
+                     text-align:right;font-variant-numeric:tabular-nums}
+  #intro .enter{font-size:.72rem;letter-spacing:.4em;text-transform:uppercase;
+                color:var(--cream);opacity:.55;animation:breathe 3.2s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:.25}50%{opacity:.8}}
+
+  /* ————— HUD ————— */
+  #hud{position:fixed;inset:0;z-index:10;pointer-events:none;
+       transition:opacity .5s ease}
+  #hud.hidden{opacity:0}
+  .hud-block{position:absolute;font-size:.66rem;letter-spacing:.22em;
+             text-transform:uppercase;color:var(--cream);
+             background:rgba(35,40,51,.5);padding:.55rem .8rem}
+  #wordmark{top:22px;left:26px;font-weight:400}
+  #wordmark small{display:block;margin-top:.35rem;color:var(--lav);
+                  font-size:.58rem;letter-spacing:.3em}
+  #telemetry{bottom:24px;left:26px;font-variant-numeric:tabular-nums;line-height:1.9}
+  #telemetry span{display:inline-block;width:4.4em;color:var(--lav)}
+  #hint{bottom:24px;right:26px;text-align:right;color:var(--lav);line-height:1.9}
+  #hint b{font-weight:400;color:var(--cream)}
+  #poi{top:19%;left:50%;transform:translateX(-50%);text-align:center;
+       font-weight:300;font-size:1.5rem;letter-spacing:.5em;text-indent:.5em;
+       text-transform:uppercase;opacity:0;transition:opacity 1.8s ease;
+       color:var(--cream);background:rgba(35,40,51,.5);
+       padding:1rem 2.2rem 1.1rem}
+  #poi small{display:block;margin-top:.7rem;font-size:.6rem;letter-spacing:.34em;
+             color:var(--lav)}
+  #poi.show{opacity:.95}
+  #reticle{position:absolute;top:50%;left:50%;width:5px;height:5px;margin:-2.5px;
+           border-radius:50%;background:var(--cream);opacity:.6;
+           outline:1px solid rgba(35,40,51,.6)}
+  #pingbar{position:absolute;top:50%;left:50%;width:42px;height:1px;margin-left:-21px;
+           margin-top:14px;background:var(--cream);opacity:0;transform-origin:left}
+  .gauge{display:inline-block;width:92px;height:3px;vertical-align:middle;
+         background:rgba(236,229,210,.22)}
+  .gauge i{display:block;height:100%;width:100%;background:var(--coral);
+           transform-origin:left;transition:transform .2s linear}
+  #toast{bottom:110px;left:50%;transform:translateX(-50%);color:var(--cream);
+         opacity:0;transition:opacity .6s ease;text-align:center}
+  #toast b{font-weight:400;color:var(--coral)}
+  #journal{position:fixed;inset:0;z-index:15;display:flex;align-items:center;
+           justify-content:center;background:rgba(35,40,51,.72);
+           transition:opacity .35s ease}
+  #journal.hidden{opacity:0;pointer-events:none}
+  #journal .panel{min-width:420px;max-width:560px;background:rgba(35,40,51,.92);
+                  padding:2.2rem 2.6rem;border:1px solid rgba(236,229,210,.25)}
+  #journal h2{font-weight:300;font-size:1rem;letter-spacing:.42em;text-indent:.42em;
+              text-transform:uppercase;text-align:center;margin-bottom:.4rem}
+  #journal .count{text-align:center;font-size:.62rem;letter-spacing:.3em;
+                  color:var(--lav);margin-bottom:1.6rem;text-transform:uppercase}
+  #journal .cat{font-size:.58rem;letter-spacing:.3em;color:var(--coral);
+                text-transform:uppercase;margin:1rem 0 .4rem}
+  #journal .row{display:flex;justify-content:space-between;align-items:baseline;
+                font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;
+                padding:.22rem 0;color:var(--cream)}
+  #journal .row.unknown{color:rgba(236,229,210,.32)}
+  #journal .row .dot{color:var(--coral)}
+</style>
+</head>
+<body>
+  <div id="intro">
+    <div class="sub">relevé de biosphère n°7 — quadrant K</div>
+    <h1>NUÉE</h1>
+    <div class="rule"></div>
+    <div class="controls">
+      <b>souris</b><span>orienter l'esquif</span>
+      <b>W / S</b><span>pousser · freiner</span>
+      <b>maj</b><span>surrégime</span>
+      <b>espace / C</b><span>monter · descendre</span>
+      <b>E</b><span>émettre un signal</span>
+      <b>tab</b><span>carnet de relevés</span>
+      <b>H</b><span>voiler l'interface</span>
+    </div>
+    <div class="rule"></div>
+    <div class="enter">cliquer pour entrer dans la nuée</div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div id="wordmark" class="hud-block">Nuée<small>relevé n°7 · quadrant K</small></div>
+    <div id="telemetry" class="hud-block">
+      <div><span>alt</span><em id="t-alt" style="font-style:normal">—</em></div>
+      <div><span>vit</span><em id="t-vit" style="font-style:normal">—</em></div>
+      <div><span>cap</span><em id="t-cap" style="font-style:normal">—</em></div>
+      <div><span>sur</span><span class="gauge"><i id="t-energie"></i></span></div>
+      <div><span>rlv</span><em id="t-releves" style="font-style:normal">0/15</em></div>
+    </div>
+    <div id="hint" class="hud-block"><b>E</b> — signal<br><b>tab</b> — relevés<br><b>H</b> — interface</div>
+    <div id="toast" class="hud-block"></div>
+    <div id="poi" class="hud-block"><span id="poi-name"></span><small id="poi-sub"></small></div>
+    <div id="reticle"></div>
+    <div id="pingbar"></div>
+  </div>
+
+  <div id="journal" class="hidden">
+    <div class="panel">
+      <h2>Relevés</h2>
+      <div class="count" id="journal-count">0 / 15</div>
+      <div id="journal-list"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
